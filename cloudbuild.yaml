@@ -2,9 +2,7 @@
 # Construye imagen Docker y la publica en Artifact Registry
 # Nota: SHORT_SHA solo está disponible cuando se ejecuta desde un trigger de Git
 # Para ejecución manual, se usa BUILD_ID directamente en los tags
-
 steps:
-  # Paso 1: Construir la imagen Docker
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -13,31 +11,50 @@ steps:
       - '-t'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/app-info-service:latest'
       - '.'
-    dir: 'materiales/practica-1/ejemplo-app-info-service'
+    dir: 'materiales/practica-4/ejemplo-migracion-completa'
 
-  # Paso 2: Publicar la imagen en Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - '--all-tags'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/app-info-service'
 
-# Configuración de imágenes a construir
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE_NAME}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/app-info-service:${BUILD_ID}'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'APP_NAME=${_APP_NAME},ENVIRONMENT=${_ENVIRONMENT}'
+      - '--update-secrets'
+      - 'SECRET_MESSAGE=${_SECRET_NAME}:latest'
+
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/app-info-service:${BUILD_ID}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/app-info-service:latest'
 
-# Substitutions (variables personalizadas)
 substitutions:
   _REGION: 'europe-southwest1'
   _REPO_NAME: 'docker-repo'
-  # Nota: BUILD_ID se usa directamente en los tags (no en substitutions) porque siempre está disponible.
-  # Para triggers de Git, puedes cambiar BUILD_ID por SHORT_SHA en los tags si prefieres usar el commit SHA.
+  _SERVICE_NAME: 'app-info-service'
+  _APP_NAME: 'App Info Service'
+  _ENVIRONMENT: 'production'
+  _SECRET_NAME: 'secret-message'
+  # _IMAGE_TAG: Para ejecución manual usa BUILD_ID directamente (BUILD_ID siempre está disponible).
+  # Para triggers de Git, puedes cambiar esto a '${SHORT_SHA}' o pasar --substitutions=_IMAGE_TAG=${SHORT_SHA}
+  # IMPORTANTE: BUILD_ID se usa directamente, no dentro de una substitution porque no se expande
+  #_IMAGE_TAG: '${BUILD_ID}'
 
-# Opciones de build
 options:
   machineType: 'E2_HIGHCPU_8'
   logging: CLOUD_LOGGING_ONLY
 
-# Timeout del build (en segundos)
 timeout: '1200s'
