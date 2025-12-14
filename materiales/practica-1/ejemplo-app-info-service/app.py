@@ -1,6 +1,7 @@
 """
 App Info Service - Aplicación Flask de ejemplo para S12
 Demuestra uso de variables de entorno, secretos y despliegue en Cloud Run
+Comentario de prueba
 """
 
 from flask import Flask, jsonify
